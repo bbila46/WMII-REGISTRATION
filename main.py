@@ -25,6 +25,9 @@ LOG_CHANNEL_ID = 1392655742430871754
 INVITE_LINK = "https://discord.gg/66qx29Tf"
 WELCOME_VIDEO_URL = "https://www.dropbox.com/scl/fi/m7e8xa674tc6fp8jbdhv0/Video-Jul-13-2025-00-28-27.mp4?rlkey=gshrknyj3pes86l9wfzdcui4x&st=zoiyxrl3&dl=0"
 
+# Temporary storage for user role choices (user_id: role_id)
+user_role_choices = {}
+
 # Modal for registration input
 class RegistrationModal(discord.ui.Modal, title="WMI Registration"):
     name = discord.ui.TextInput(
@@ -49,7 +52,7 @@ class RegistrationModal(discord.ui.Modal, title="WMI Registration"):
             description="Click the button below to select your role.",
             color=discord.Color.green()
         )
-        view = RoleView()
+        view = RoleView(interaction.user.id)
         await interaction.response.send_message(embed=role_embed, view=view, ephemeral=True)
 
         # Log registration in the specified channel
@@ -64,27 +67,28 @@ class RegistrationModal(discord.ui.Modal, title="WMI Registration"):
 
 # Button for role selection
 class RoleButton(discord.ui.Button):
-    def __init__(self):
+    def __init__(self, user_id: int):
         super().__init__(label="MS1 Year 1 Student", style=discord.ButtonStyle.primary)
+        self.user_id = user_id
 
     async def callback(self, interaction: discord.Interaction):
-        role = interaction.guild.get_role(ROLE_ID)
-        if role:
-            await interaction.user.add_roles(role)
+        if interaction.user.id == self.user_id:
+            # Store the user's role choice
+            user_role_choices[self.user_id] = ROLE_ID
             embed = discord.Embed(
-                title="Role Assigned!",
-                description=f"You have been assigned the **MS1 Year 1 Student** role!\n\nJoin our server: [Click Here]({INVITE_LINK})",
+                title="Role Selected!",
+                description=f"You have selected the **MS1 Year 1 Student** role!\n\nJoin our server to receive it: [Click Here]({INVITE_LINK})",
                 color=discord.Color.green()
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
-            await interaction.response.send_message("Error: Role not found.", ephemeral=True)
+            await interaction.response.send_message("This button is not for you!", ephemeral=True)
 
 # View for the role button
 class RoleView(discord.ui.View):
-    def __init__(self):
+    def __init__(self, user_id: int):
         super().__init__(timeout=None)
-        self.add_item(RoleButton())
+        self.add_item(RoleButton(user_id))
 
 # Event: Bot is ready
 @bot.event
@@ -100,10 +104,14 @@ async def on_ready():
 @bot.event
 async def on_member_join(member: discord.Member):
     if member.guild.id == SERVER_ID:
-        # Assign the role
-        role = member.guild.get_role(ROLE_ID)
-        if role:
-            await member.add_roles(role)
+        # Check if the user has a stored role choice
+        role_id = user_role_choices.get(member.id)
+        if role_id:
+            role = member.guild.get_role(role_id)
+            if role:
+                await member.add_roles(role)
+                # Clear the stored choice
+                user_role_choices.pop(member.id, None)
 
         # Send welcome message
         channel = member.guild.get_channel(LOG_CHANNEL_ID)
