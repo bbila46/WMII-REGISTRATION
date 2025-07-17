@@ -25,7 +25,7 @@ ROLE_ID = 1392653369964757154
 LOG_CHANNEL_ID = 1392655742430871754
 WELCOME_CHANNEL_ID = 1387102987238768788
 INVITE_LINK = "https://discord.gg/beX6REQH"
-WELCOME_GIF_URL = "https://www.dropbox.com/scl/fi/yxya94d102ltsrz64qv9k/Photo-Jul-16-2025-22-48-40.gif?rlkey=1bs2wfc8ae0tuax8deyo6crwy&st=lqux5oe7&dl=0"
+WELCOME_GIF_URL = "https://www.dropbox.com/scl/fi/yxya94d102ltsrz64qv9k/Photo-Jul-16-2025-22-48-40.gif?rlkey=1bs2wfc8ae0tuax8deyo6crwy&st=lqux5oe7&raw=1"
 
 # Temporary user-role storage
 user_role_choices = {}
