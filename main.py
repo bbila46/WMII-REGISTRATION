@@ -1,105 +1,124 @@
 import discord
 from discord.ext import commands
-from discord import app_commands, Interaction, Embed, ButtonStyle, ui
-from datetime import datetime
+from discord import app_commands
 import os
+from datetime import datetime
+from dotenv import load_dotenv
 
+# Load environment variables
+load_dotenv()
+DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
+
+# Set up Discord bot with intents
 intents = discord.Intents.default()
-intents.members = True  # So we can auto-assign roles
-bot = commands.Bot(command_prefix="/", intents=intents)
+intents.members = True  # Enable members intent for role assignment
+intents.message_content = True  # Enable message content intent
+bot = commands.Bot(command_prefix='/', intents=intents)
 
-GUILD_ID = 1387102987238768783  # Your target server ID
-WELCOME_CHANNEL_ID = 1392655742430871754
-STUDENT_ROLE_ID = 1392653369964757154
+# Server and role IDs
+SERVER_ID = 1387102987238768783
+ROLE_ID = 1392653369964757154
+LOG_CHANNEL_ID = 1392655742430871754
 INVITE_LINK = "https://discord.gg/66qx29Tf"
+WELCOME_VIDEO_URL = "https://www.dropbox.com/scl/fi/m7e8xa674tc6fp8jbdhv0/Video-Jul-13-2025-00-28-27.mp4?rlkey=gshrknyj3pes86l9wfzdcui4x&st=zoiyxrl3&dl=0"
 
-class RegisterModal(ui.Modal, title="WMI Registration"):
-    name = ui.TextInput(label="Your Full Name", placeholder="Jane Doe", required=True)
-    email = ui.TextInput(label="Your Email (optional)", placeholder="example@domain.com", required=False)
+# Modal for registration input
+class RegistrationModal(discord.ui.Modal, title="WMI Registration"):
+    name = discord.ui.TextInput(
+        label="Name",
+        placeholder="Enter your name",
+        required=True
+    )
+    email = discord.ui.TextInput(
+        label="Email (Optional)",
+        placeholder="Enter your email (optional)",
+        required=False
+    )
 
-    async def on_submit(self, interaction: Interaction):
-        embed = Embed(
+    async def on_submit(self, interaction: discord.Interaction):
+        # Store registration data
+        name = self.name.value
+        email = self.email.value or "Not provided"
+
+        # Send role selection embed with button
+        role_embed = discord.Embed(
             title="Choose Your Role",
-            description="Click below to register as a **MS1 Year 1 Student**.",
-            color=discord.Color.blue()
-        )
-        view = RoleButton(self.name.value, self.email.value)
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-
-class RoleButton(ui.View):
-    def __init__(self, name, email):
-        super().__init__(timeout=None)
-        self.name = name
-        self.email = email
-
-    @ui.button(label="MS1 Year 1 Student", style=ButtonStyle.success)
-    async def register_button(self, interaction: Interaction, button: ui.Button):
-        await interaction.response.send_message(
-            f"You're almost done!\nClick to join: {INVITE_LINK}", ephemeral=True
-        )
-
-        # Post registration log
-        channel = bot.get_channel(WELCOME_CHANNEL_ID)
-        embed = Embed(
-            title="New Registration",
-            description=(
-                f"**Name:** {self.name}\n"
-                f"**Email:** {self.email or 'N/A'}\n"
-                f"**Date:** {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC\n"
-                f"**Role:** MS1 Year 1 Student\n"
-                f"**User:** {interaction.user.mention}"
-            ),
+            description="Click the button below to select your role.",
             color=discord.Color.green()
         )
-        await channel.send(embed=embed)
+        view = RoleView()
+        await interaction.response.send_message(embed=role_embed, view=view, ephemeral=True)
 
-@bot.tree.command(name="wmi_register", description="Register at Wisteria Medical Institute")
-async def wmi_register(interaction: Interaction):
-    await interaction.response.send_modal(RegisterModal())
+        # Log registration in the specified channel
+        log_channel = bot.get_channel(LOG_CHANNEL_ID)
+        if log_channel:
+            log_embed = discord.Embed(
+                title="New Registration",
+                description=f"**Name**: {name}\n**Email**: {email}\n**Date**: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}\n**Role**: MS1 Year 1 Student",
+                color=discord.Color.blue()
+            )
+            await log_channel.send(embed=log_embed)
 
-# Assign role on member join
-@bot.event
-async def on_member_join(member):
-    if member.guild.id != GUILD_ID:
-        return
+# Button for role selection
+class RoleButton(discord.ui.Button):
+    def __init__(self):
+        super().__init__(label="MS1 Year 1 Student", style=discord.ButtonStyle.primary)
 
-    role = member.guild.get_role(STUDENT_ROLE_ID)
-    if role:
-        await member.add_roles(role)
+    async def callback(self, interaction: discord.Interaction):
+        role = interaction.guild.get_role(ROLE_ID)
+        if role:
+            await interaction.user.add_roles(role)
+            embed = discord.Embed(
+                title="Role Assigned!",
+                description=f"You have been assigned the **MS1 Year 1 Student** role!\n\nJoin our server: [Click Here]({INVITE_LINK})",
+                color=discord.Color.green()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        else:
+            await interaction.response.send_message("Error: Role not found.", ephemeral=True)
 
-    embed = Embed(
-        title="🎓 Welcome to Wisteria Medical Institute!",
-        description=(
-            f"Greetings, {member.mention}!\n\n"
-            "**We’re thrilled to welcome you to Wisteria Medical Institute — where knowledge meets compassion.**\n\n"
-            "Thank you for choosing us as your academic home. Here, you'll grow, learn, and shape the future of medicine with a supportive and passionate community.\n\n"
-            "💡 If you need help or have any questions, don’t hesitate to ask!\n\n"
-            "*Wishing you success on your medical journey!*"
-        ),
-        color=discord.Color.purple()
-    )
-    embed.set_video(url="https://www.dropbox.com/scl/fi/m7e8xa674tc6fp8jbdhv0/Video-Jul-13-2025-00-28-27.mp4?rlkey=gshrknyj3pes86l9wfzdcui4x&st=zoiyxrl3&dl=0")
-    channel = bot.get_channel(WELCOME_CHANNEL_ID)
-    await channel.send(embed=embed)
+# View for the role button
+class RoleView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(RoleButton())
 
+# Event: Bot is ready
 @bot.event
 async def on_ready():
-    await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
-    print(f"Bot is ready as {bot.user}")
+    print(f'Logged in as {bot.user.name}')
+    try:
+        synced = await bot.tree.sync()
+        print(f"Synced {len(synced)} command(s)")
+    except Exception as e:
+        print(e)
 
-# For Render Deployment (optional Flask server to keep alive)
-from flask import Flask
-app = Flask("")
+# Event: Member joins the server
+@bot.event
+async def on_member_join(member: discord.Member):
+    if member.guild.id == SERVER_ID:
+        # Assign the role
+        role = member.guild.get_role(ROLE_ID)
+        if role:
+            await member.add_roles(role)
 
-@app.route("/")
-def home():
-    return "Bot is running!"
+        # Send welcome message
+        channel = member.guild.get_channel(LOG_CHANNEL_ID)
+        if channel:
+            embed = discord.Embed(
+                title="Welcome to Wisteria Medical Institute!",
+                description=f"Greetings, <@{member.id}>!\n\nWe’re thrilled to welcome you to **Wisteria Medical Institute** — where knowledge meets compassion.\n\nThank you for choosing us as your academic home. Here, you'll grow, learn, and shape the future of medicine with a supportive and passionate community.\n\n💡 If you need help or have any questions, don’t hesitate to ask!\n\nWishing you success on your medical journey!",
+                color=discord.Color.purple()
+            )
+            embed.set_footer(text="Wisteria Medical Institute")
+            embed.add_field(name="Welcome Video", value=f"[Watch Here]({WELCOME_VIDEO_URL})", inline=False)
+            await channel.send(embed=embed)
 
-import threading
-def run():
-    app.run(host="0.0.0.0", port=8080)
-
-threading.Thread(target=run).start()
+# Slash command: /wmi_register
+@app_commands.command(name="wmi_register", description="Register for Wisteria Medical Institute")
+async def wmi_register(interaction: discord.Interaction):
+    await interaction.response.send_modal(RegistrationModal())
 
 # Run the bot
-bot.run(os.getenv("TOKEN"))
+bot.tree.add_command(wmi_register)
+bot.run(DISCORD_TOKEN)
