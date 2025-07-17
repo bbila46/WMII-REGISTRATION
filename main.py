@@ -4,10 +4,13 @@ from discord import app_commands
 import os
 from datetime import datetime
 from dotenv import load_dotenv
+from aiohttp import web
+import asyncio
 
 # Load environment variables
 load_dotenv()
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
+PORT = int(os.getenv('PORT', 8080))  # Default to 8080 if PORT is not set
 
 # Set up Discord bot with intents
 intents = discord.Intents.default()
@@ -119,6 +122,27 @@ async def on_member_join(member: discord.Member):
 async def wmi_register(interaction: discord.Interaction):
     await interaction.response.send_modal(RegistrationModal())
 
+# Minimal HTTP server for Render
+async def handle(request):
+    return web.Response(text="Discord bot is running")
+
+async def start_web_server():
+    app = web.Application()
+    app.add_routes([web.get('/', handle)])
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', PORT)
+    await site.start()
+    print(f"Web server running on port {PORT}")
+
+# Run both bot and web server
+async def main():
+    await asyncio.gather(
+        bot.start(DISCORD_TOKEN),
+        start_web_server()
+    )
+
 # Run the bot
 bot.tree.add_command(wmi_register)
-bot.run(DISCORD_TOKEN)
+if __name__ == "__main__":
+    asyncio.run(main())
