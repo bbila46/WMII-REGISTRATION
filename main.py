@@ -22,7 +22,8 @@ bot = commands.Bot(command_prefix='/', intents=intents)
 SERVER_ID = 1387102987238768783
 ROLE_ID = 1392653369964757154
 LOG_CHANNEL_ID = 1392655742430871754
-INVITE_LINK = "https://discord.gg/beX6REQH"  # Updated invite link
+WELCOME_CHANNEL_ID = 1387102987238768788  # New channel for welcome message
+INVITE_LINK = "https://discord.gg/beX6REQH"
 WELCOME_VIDEO_URL = "https://www.dropbox.com/scl/fi/m7e8xa674tc6fp8jbdhv0/Video-Jul-13-2025-00-28-27.mp4?rlkey=gshrknyj3pes86l9wfzdcui4x&st=zoiyxrl3&dl=0"
 
 # Temporary storage for user role choices (user_id: role_id)
@@ -113,8 +114,8 @@ async def on_member_join(member: discord.Member):
                 # Clear the stored choice
                 user_role_choices.pop(member.id, None)
 
-        # Send welcome message
-        channel = member.guild.get_channel(LOG_CHANNEL_ID)
+        # Send welcome message in the welcome channel
+        channel = member.guild.get_channel(WELCOME_CHANNEL_ID)
         if channel:
             embed = discord.Embed(
                 title="Welcome to Wisteria Medical Institute!",
